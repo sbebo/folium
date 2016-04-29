@@ -720,6 +720,84 @@ class ClickForMarker(MacroElement):
             {% endmacro %}
             """)  # noqa
 
+class ClickForDepot(MacroElement):
+    """When one clicks on a Map that contains a ClickForDepot, a Depot is created
+    at the pointer's position.
+
+    Parameters
+    ----------
+    popup: str, default None
+        Text to display in the markers' popups.
+        If None, the popups will display the marker's latitude and longitude.
+    """
+    def __init__(self, popup=None):
+        super(ClickForDepot, self).__init__()
+        self._name = 'ClickForDepot'
+
+        if popup:
+            self.popup = ''.join(['"', popup, '"'])
+        else:
+            self.popup = '"Latitude: " + lat + "<br>Longitude: " + lng '
+
+        self._template = Template(u"""
+            {% macro script(this, kwargs) %}
+                var bounds1 = [[54.559322, -5.767822], [56.1210604, -3.021240]];
+                var bounds2 = [[44.559322, -5.767822], [46.1210604, -3.021240]];
+                var depots = [];
+                depots.push(L.rectangle(bounds1));
+                depots.push(L.rectangle(bounds2));
+                {{this._parent.get_name()}}.addLayer(depot[0]);
+                {{this._parent.get_name()}}.addLayer(depot[1]);
+                
+                var cur_depot = depots[0];
+                
+                var UP = 87;    //W  //38;
+                var LEFT = 65;  //A  //37; //Arrows
+                var DOWN = 83;  //S  //40;
+                var RIGHT = 68; //D  //39;
+
+                function keyPressed(e){
+                    console.log("YESSSSSSSS")
+                    //if(String.fromCharCode(e.which) == 'U') {
+                    switch(e.which) {
+                        case UP:
+                            bounds[0][0] += 1; 
+                            break;
+                        case DOWN:
+                            bounds[0][0] -= 1; 
+                            break;
+                        case LEFT:
+                            bounds[0][1] -= 1; 
+                            break;
+                        case RIGHT:
+                            bounds[0][1] += 1; 
+                            break;
+                    }
+                    depot.setBounds(bounds);
+                    };
+
+                {{this._parent.get_name()}}.on('keydown', keyPressed);
+                document.onkeydown = keyPressed;
+                
+                depot.on({
+                            mousedown: function () {
+                                {{this._parent.get_name()}}.on('mousemove', function (e) {
+                                
+                                height = bounds[1][0] - bounds[0][0];
+                                width = bounds[1][1] - bounds[0][1];
+                                center = [e.latlng.lat, e.latlng.lng];
+                                bounds[0] = [center[0] - height/2, center[1] - width/2];
+                                bounds[1] = [center[0] + height/2, center[1] + width/2];
+                                console.log(bounds)
+                                depot.setBounds(bounds);
+                                });
+                        }
+                }); 
+                {{this._parent.get_name()}}.on('mouseup',function(e){
+                               {{this._parent.get_name()}}.removeEventListener('mousemove');
+                                  })
+            {% endmacro %}
+            """)  # noqa
 
 class PolyLine(MacroElement):
     """

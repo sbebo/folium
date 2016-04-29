@@ -16,7 +16,7 @@ from folium.six import text_type, binary_type
 from .map import LegacyMap, Icon, Marker, Popup, FitBounds
 from .features import (WmsTileLayer, RegularPolygonMarker, Vega, GeoJson,
                        CircleMarker, LatLngPopup,
-                       ClickForMarker, TopoJson, PolyLine, MultiPolyLine,
+                       ClickForMarker, ClickForDepot, TopoJson, PolyLine, MultiPolyLine,
                        )
 from .colormap import StepColormap
 from .utilities import color_brewer

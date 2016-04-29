@@ -7,7 +7,7 @@ from folium.folium import Map, initialize_notebook, CircleMarker
 from folium.map import (FeatureGroup, FitBounds, Icon, LayerControl, Marker,
                         Popup, TileLayer)
 
-from folium.features import (ClickForMarker, CustomIcon, DivIcon,
+from folium.features import (ClickForMarker, ClickForDepot, CustomIcon, DivIcon,
                              GeoJson, LatLngPopup,
                              MarkerCluster, MultiPolyLine, PolyLine, Vega,
                              RegularPolygonMarker, TopoJson, WmsTileLayer)
@@ -27,6 +27,7 @@ __all__ = ['Map',
            'Popup',
            'TileLayer',
            'ClickForMarker',
+           'ClickForDepot',
            'colormap',
            'CustomIcon',
            'DivIcon',
