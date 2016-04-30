@@ -730,85 +730,284 @@ class ClickForDepot(MacroElement):
         Text to display in the markers' popups.
         If None, the popups will display the marker's latitude and longitude.
     """
-    def __init__(self, popup=None):
+    def __init__(self, initial_bounds, initial_labels):
         super(ClickForDepot, self).__init__()
         self._name = 'ClickForDepot'
-
-        if popup:
-            self.popup = ''.join(['"', popup, '"'])
-        else:
-            self.popup = '"Latitude: " + lat + "<br>Longitude: " + lng '
+        self.initial_bounds = initial_bounds
+        self.initial_labels = initial_labels
 
         self._template = Template(u"""
             {% macro script(this, kwargs) %}
-                var bounds1 = [[54.559322, -5.767822], [56.1210604, -3.021240]];
-                var bounds2 = [[44.559322, -5.767822], [46.1210604, -3.021240]];
+               
+                function getCenter(box){
+                    return [(box[0][0] + box[1][0])/2,(box[0][1] + box[1][1])/2]
+                }
+                
+               
+                var discarded = [] 
+                var initial_bounds = {{this.initial_bounds}};
+                var initial_labels = {{this.initial_labels}};
                 var depots = [];
-                depots.push(L.rectangle(bounds1));
-                depots.push(L.rectangle(bounds2));
-                {{this._parent.get_name()}}.addLayer(depots[0]);
-                {{this._parent.get_name()}}.addLayer(depots[1]);
+                var depot_rectangles = [];
+                var depot_markers = [];
+
+                var selected = 0;
+                var good = initial_labels.length;
+ 
+		var home_icon = L.AwesomeMarkers.icon({
+                    icon: 'home',
+                    iconColor: 'white',
+                    markerColor: 'green'
+                    });
+
+		var depot_icon = L.AwesomeMarkers.icon({
+                    icon: 'truck', prefix: 'fa', 
+		    //icon: 'truck',
+                    iconColor: 'white',
+                    markerColor: 'red'
+                    });
+
+                var unkown_icon = L.AwesomeMarkers.icon({
+                    icon: 'question', prefix: 'fa', 
+                    iconColor: 'white',
+                    markerColor: 'blue'
+                    });
+
+
+		function dehighlight(i) {
+                    var group = depots[i];
+                    var marker = group.getLayers()[0];
+                    var rectangle = group.getLayers()[1];
+                    rectangle.setStyle({opacity: 0.3, fillOpacity: 0.1});
+                    marker.setOpacity(0.5);
+                }
+
+                function highlight(i) {
+                    var group = depots[i];
+                    var marker = group.getLayers()[0];
+                    var rectangle = group.getLayers()[1];
+                    rectangle.setStyle({opacity: 0.7, fillOpacity: 0.5});
+                    marker.setOpacity(1.0);
+                    var latlng = marker.getLatLng();
+                    var bounds = rectangle.getBounds();
+                    bounds = [  [bounds.getNorth(), bounds.getEast()],
+                                [bounds.getSouth(), bounds.getWest()]
+                                ];
+                    var height = bounds[1][0] - bounds[0][0];
+                    var width = bounds[1][1] - bounds[0][1];
+                    var center = [latlng.lat, latlng.lng];
+                    bounds[0] = [center[0] - height*3, center[1] - width*4];
+                    bounds[1] = [center[0] + height*3, center[1] + width*4];
+                    {{this._parent.get_name()}}.fitBounds(bounds);
+                    group.bringToFront();
+                }
+
+                function setLabel(i, label) { 
+                    depots[i].label = label;
+                    switch(label) {
+                        case 'depot':
+                            depot_markers[i].setIcon(depot_icon);
+                            depot_rectangles[i].setStyle({color: 'red', fillColor: 'red'});
+                            break;
+                        case 'home':
+                            depot_markers[i].setIcon(home_icon);
+                            depot_rectangles[i].setStyle({color: 'green', fillColor: 'green'});
+                            break;
+                        default:
+                            depot_markers[i].setIcon(unkown_icon);
+                            depot_rectangles[i].setStyle({color: 'blue', fillColor: 'blue'});
+                            break;
+                    }
+                }
+
+                function rotateRole(i) {
+                    console.log(depots[i].label)
+                    if(depots[i].label == 'home')
+                        setLabel(i, 'depot')
+                    else
+                        setLabel(i, 'home')
+                }
+                for(var i=0; i<initial_bounds.length; ++i) {
+                    depot_rectangles.push(L.rectangle(initial_bounds[i]));
+                    depot_markers.push(L.marker(getCenter(initial_bounds[i]),{draggable: true}));
+                    depots.push(L.featureGroup([depot_markers[i], depot_rectangles[i]]));
+                    depot_rectangles[i].depot_id = i;
+                    depot_markers[i].depot_id = i;
+                    depots[i].depot_id = i;
+                    setLabel(i, initial_labels[i]);
+                    {{this._parent.get_name()}}.addLayer(depots[i]);
+                    if(i == 0)
+                        highlight(i);
+                    else
+                        dehighlight(i);
+                }
                 
-                var cur_depot = depots[0];
+                var UP = 87;    //W key
+                var LEFT = 65;  //A key
+                var DOWN = 83;  //S key
+                var RIGHT = 68; //D key
+                var DELETE = 46;//DEL key
                 
-                var UP = 87;    //W  //38;
-                var LEFT = 65;  //A  //37; //Arrows
-                var DOWN = 83;  //S  //40;
-                var RIGHT = 68; //D  //39;
+                var NEW = 78;   //N key
+                
+                var NEXT = 75;   //K key
+                var PREV = 74;   //J key
+                
+                function getEpsilon() {
+                    var zoom = {{this._parent.get_name()}}.getZoom();
+                    return 50*Math.pow(1/2,zoom);
+                }
 
                 function keyPressed(e){
-                    console.log("YESSSSSSSS")
-                    //if(String.fromCharCode(e.which) == 'U') {
-                    bounds = cur_depot.getBounds();
+                    var marker = depot_markers[selected];
+                    var rectangle = depot_rectangles[selected];
+                    
+                    var bounds = rectangle.getBounds();
                     bounds = [  [bounds.getNorth(), bounds.getEast()],
                                 [bounds.getSouth(), bounds.getWest()]
                                 ];
                     switch(e.which) {
                         case UP:
-                            bounds[0][0] += 1; 
+                            bounds[0][0] += getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
                             break;
                         case DOWN:
-                            bounds[0][0] -= 1; 
+                            bounds[0][0] -= getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
                             break;
                         case LEFT:
-                            bounds[0][1] -= 1; 
+                            bounds[0][1] -= getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
                             break;
                         case RIGHT:
-                            bounds[0][1] += 1; 
+                            bounds[0][1] += getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
+                            break;
+                        case DELETE:
+                            if(good <= 1)
+                                break;
+                            good -= 1;
+                            {{this._parent.get_name()}}.removeLayer(depots[selected]);
+                            depots[selected].label = 'discarded';
+                            while(depots[selected].label == 'discarded') {
+                                selected = (selected + 1) % depots.length;
+                            }
+                            highlight(selected);
+                            break;
+                        case NEXT:
+                            if(good == 0)
+                                break;
+                            dehighlight(selected);
+                            selected = (selected + 1) % depots.length;
+                            while(depots[selected].label == 'discarded') {
+                                selected = (selected + 1) % depots.length;
+                            }
+                            highlight(selected);
+                            break;
+                        case PREV:
+                            if(good == 0)
+                                break;
+                            dehighlight(selected);
+                            selected = (selected - 1 + depots.length) % depots.length;
+                            while(depots[selected].label == 'discarded') {
+                                selected = (selected - 1 + depots.length) % depots.length;
+                            }
+                            highlight(selected);
+                            break;
+                        case NEW:
+                            good += 1;
+                            dehighlight(selected);
+                            selected = depots.length;
+                            bounds[0][1] += 2 
+                            depot_rectangles.push(L.rectangle(bounds));
+                            depot_markers.push(L.marker(getCenter(bounds),{draggable: true}));
+                            depots.push(L.featureGroup([depot_markers[selected], 
+                                                                depot_rectangles[selected]]));
+                            depot_rectangles[selected].depot_id = selected;
+                            depot_markers[selected].depot_id = selected;
+                            setLabel(selected, "unkown");
+                            depots[selected].depot_id = selected;
+                            {{this._parent.get_name()}}.addLayer(depots[selected]);
+                            depots[selected].on({click: selectDepot}); 
+                            depot_markers[selected].on({drag: dragMarker}); 
+                            depot_rectangles[selected].on({dblclick: changeRole}); 
+                            depot_markers[selected].on({dblclick: changeRole}); 
+                            highlight(selected);
                             break;
                     }
-                    cur_depot.setBounds(bounds);
                     };
-           
-                function makeStartDragFunction(i)
-                {   return function(e) {
-                                    cur_depot.setStyle({fillColor: '#1234FF'});
-                                    cur_depot = e.target;
-                                    cur_depot.setStyle({fillColor: '#00000F'});
-                                    {{this._parent.get_name()}}.on('mousemove', function (e) {
-                                    bounds = cur_depot.getBounds();
-                                    bounds = [  [bounds.getNorth(), bounds.getEast()],
-                                                [bounds.getSouth(), bounds.getWest()]
-                                            ];
-                                    height = bounds[1][0] - bounds[0][0];
-                                    width = bounds[1][1] - bounds[0][1];
-                                    center = [e.latlng.lat, e.latlng.lng];
-                                    bounds[0] = [center[0] - height/2, center[1] - width/2];
-                                    bounds[1] = [center[0] + height/2, center[1] + width/2];
-                                    cur_depot.setBounds(bounds);
-                                    });
+
+                function selectDepot(e) {
+                    console.log("selectDepot on " + e.target.depot_id)
+                    if(selected != e.target.depot_id) {
+                        dehighlight(selected)                        
+                        selected = e.target.depot_id;
+                        highlight(selected)                        
                     }
+                }
+                    
+                function dragMarker(e) {
+                    if(selected != e.target.depot_id) {
+                        dehighlight(selected)                        
+                        selected = e.target.depot_id;
+                        highlight(selected)                        
+                    }
+                    var marker = e.target;
+                    var latlng = marker.getLatLng();
+                    var rectangle = depot_rectangles[marker.depot_id];
+                    var bounds = rectangle.getBounds();
+                    bounds = [  [bounds.getNorth(), bounds.getEast()],
+                                [bounds.getSouth(), bounds.getWest()]   ];
+                    var height = bounds[1][0] - bounds[0][0];
+                    var width = bounds[1][1] - bounds[0][1];
+                    var center = [latlng.lat, latlng.lng];
+                    bounds[0] = [center[0] - height/2, center[1] - width/2];
+                    bounds[1] = [center[0] + height/2, center[1] + width/2];
+                    rectangle.setBounds(bounds);
+                }               
+                
+                function changeRole(e) {
+                    rotateRole(e.target.depot_id);
                 }
                 
                 document.onkeydown = keyPressed;
                 
                 for (var i = 0; i < depots.length; ++i) {
-                    depots[i].on({
-                                mousedown: makeStartDragFunction(i)}); 
+                    depots[i].on({click: selectDepot}); 
+                    depot_markers[i].on({drag: dragMarker}); 
+                    depot_rectangles[i].on({dblclick: changeRole}); 
+                    depot_markers[i].on({dblclick: changeRole}); 
                 }
                 {{this._parent.get_name()}}.on('mouseup',function(e){
                                {{this._parent.get_name()}}.removeEventListener('mousemove');
                                   })
+
+        //        var textFile = null,
+        //          makeTextFile = function (text) {
+        //            var data = new Blob([text], {type: 'text/plain'});
+
+        //            // If we are replacing a previously generated file we need to
+        //            // manually revoke the object URL to avoid memory leaks.
+        //            if (textFile !== null) {
+        //              window.URL.revokeObjectURL(textFile);
+        //            }
+
+        //            textFile = window.URL.createObjectURL(data);
+
+        //            return textFile;
+        //          };
+	//	
+	//	
+        //          {{this._parent.get_name()}}.addEventListener('dblclick', function () {
+	//	    var link = document.getElementById('downloadlink');
+	//	    link.href = makeTextFile("HELLOOOOOOOOOO");
+	//	    link.style.display = 'block';
+	//	  }, false);
+		
             {% endmacro %}
             """)  # noqa
 
