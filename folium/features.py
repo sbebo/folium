@@ -738,7 +738,27 @@ class ClickForDepot(MacroElement):
 
         self._template = Template(u"""
             {% macro script(this, kwargs) %}
-               
+
+
+                var legend = L.control({position: 'bottomright'});
+                
+                legend.onAdd = function (map) {
+                    var div = L.DomUtil.create('div', 'info legend');
+                    div.innerHTML = '<h4>Detect depots!</h4><br>';
+                    div.innerHTML += '<b>Usage:</b><br>';
+                    div.innerHTML += '- &larr;&uarr;&darr;&rarr;: move box<br>';
+                    div.innerHTML += '- W/A/S/D: modify box width/height<br>';
+                    div.innerHTML += '- J/K: select previous/next box<br>';
+                    div.innerHTML += '- click: select box<br>';
+                    div.innerHTML += '- SPACE/double click: change label<br>';
+                    div.innerHTML += '- DEL(CANC): remove box<br>'; 
+                    div.innerHTML += '- +/-: zoom in/out<br>';
+                    div.style.background = "white";
+                    div.style.padding = "6px 8px";
+                    return div;
+                };
+                {{this._parent.get_name()}}.addControl(legend);
+
                 function getCenter(box){
                     return [(box[0][0] + box[1][0])/2,(box[0][1] + box[1][1])/2]
                 }
@@ -761,8 +781,7 @@ class ClickForDepot(MacroElement):
                     });
 
 		var depot_icon = L.AwesomeMarkers.icon({
-                    icon: 'truck', prefix: 'fa', 
-		    //icon: 'truck',
+                    icon: 'briefcase', prefix: 'fa', 
                     iconColor: 'white',
                     markerColor: 'red'
                     });
@@ -772,7 +791,6 @@ class ClickForDepot(MacroElement):
                     iconColor: 'white',
                     markerColor: 'blue'
                     });
-
 
 		function dehighlight(i) {
                     var group = depots[i];
@@ -842,6 +860,11 @@ class ClickForDepot(MacroElement):
                         dehighlight(i);
                 }
                 
+                var ARROWLEFT = 37; 
+                var ARROWUP = 38;   
+                var ARROWRIGHT = 39;
+                var ARROWDOWN = 40; 
+                
                 var UP = 87;    //W key
                 var LEFT = 65;  //A key
                 var DOWN = 83;  //S key
@@ -852,6 +875,10 @@ class ClickForDepot(MacroElement):
                 
                 var NEXT = 75;   //K key
                 var PREV = 74;   //J key
+                
+                var PLUS = 187;   //+ key
+                var MINUS = 189;  //- key
+                var SPACE = 32;   //space bar
                 
                 function getEpsilon() {
                     var zoom = {{this._parent.get_name()}}.getZoom();
@@ -867,6 +894,43 @@ class ClickForDepot(MacroElement):
                                 [bounds.getSouth(), bounds.getWest()]
                                 ];
                     switch(e.which) {
+                        case ARROWUP:
+                            bounds[0][0] += getEpsilon();
+                            bounds[1][0] += getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
+                            {{this._parent.get_name()}}.setView(getCenter(bounds));
+                            break;
+                        case ARROWDOWN:
+                            bounds[0][0] -= getEpsilon();
+                            bounds[1][0] -= getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
+                            {{this._parent.get_name()}}.setView(getCenter(bounds));
+                            break;
+                        case ARROWLEFT:
+                            bounds[0][1] -= getEpsilon();
+                            bounds[1][1] -= getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
+                            {{this._parent.get_name()}}.setView(getCenter(bounds));
+                            break;
+                        case ARROWRIGHT:
+                            bounds[0][1] += getEpsilon();
+                            bounds[1][1] += getEpsilon();
+                            rectangle.setBounds(bounds);
+                            marker.setLatLng(getCenter(bounds));
+                            {{this._parent.get_name()}}.setView(getCenter(bounds));
+                            break;
+                        case PLUS:
+                            {{this._parent.get_name()}}.zoomIn();
+                            break;
+                        case MINUS:
+                            {{this._parent.get_name()}}.zoomOut();
+                            break;
+                        case SPACE:
+                            rotateRole(selected);
+                            break;
                         case UP:
                             bounds[0][0] += getEpsilon();
                             rectangle.setBounds(bounds);
@@ -894,7 +958,7 @@ class ClickForDepot(MacroElement):
                             {{this._parent.get_name()}}.removeLayer(depots[selected]);
                             depots[selected].label = 'discarded';
                             while(depots[selected].label == 'discarded') {
-                                selected = (selected + 1) % depots.length;
+                                selected = (selected - 1 + depots.length) % depots.length;
                             }
                             highlight(selected);
                             break;
@@ -922,7 +986,8 @@ class ClickForDepot(MacroElement):
                             good += 1;
                             dehighlight(selected);
                             selected = depots.length;
-                            bounds[0][1] += 2 
+                            bounds[0][1] += 3*getEpsilon(); 
+                            bounds[1][1] += 3*getEpsilon(); 
                             depot_rectangles.push(L.rectangle(bounds));
                             depot_markers.push(L.marker(getCenter(bounds),{draggable: true}));
                             depots.push(L.featureGroup([depot_markers[selected], 
