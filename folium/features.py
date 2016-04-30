@@ -746,8 +746,8 @@ class ClickForDepot(MacroElement):
                 var depots = [];
                 depots.push(L.rectangle(bounds1));
                 depots.push(L.rectangle(bounds2));
-                {{this._parent.get_name()}}.addLayer(depot[0]);
-                {{this._parent.get_name()}}.addLayer(depot[1]);
+                {{this._parent.get_name()}}.addLayer(depots[0]);
+                {{this._parent.get_name()}}.addLayer(depots[1]);
                 
                 var cur_depot = depots[0];
                 
@@ -759,6 +759,10 @@ class ClickForDepot(MacroElement):
                 function keyPressed(e){
                     console.log("YESSSSSSSS")
                     //if(String.fromCharCode(e.which) == 'U') {
+                    bounds = cur_depot.getBounds();
+                    bounds = [  [bounds.getNorth(), bounds.getEast()],
+                                [bounds.getSouth(), bounds.getWest()]
+                                ];
                     switch(e.which) {
                         case UP:
                             bounds[0][0] += 1; 
@@ -773,26 +777,35 @@ class ClickForDepot(MacroElement):
                             bounds[0][1] += 1; 
                             break;
                     }
-                    depot.setBounds(bounds);
+                    cur_depot.setBounds(bounds);
                     };
-
-                {{this._parent.get_name()}}.on('keydown', keyPressed);
+           
+                function makeStartDragFunction(i)
+                {   return function(e) {
+                                    cur_depot.setStyle({fillColor: '#1234FF'});
+                                    cur_depot = e.target;
+                                    cur_depot.setStyle({fillColor: '#00000F'});
+                                    {{this._parent.get_name()}}.on('mousemove', function (e) {
+                                    bounds = cur_depot.getBounds();
+                                    bounds = [  [bounds.getNorth(), bounds.getEast()],
+                                                [bounds.getSouth(), bounds.getWest()]
+                                            ];
+                                    height = bounds[1][0] - bounds[0][0];
+                                    width = bounds[1][1] - bounds[0][1];
+                                    center = [e.latlng.lat, e.latlng.lng];
+                                    bounds[0] = [center[0] - height/2, center[1] - width/2];
+                                    bounds[1] = [center[0] + height/2, center[1] + width/2];
+                                    cur_depot.setBounds(bounds);
+                                    });
+                    }
+                }
+                
                 document.onkeydown = keyPressed;
                 
-                depot.on({
-                            mousedown: function () {
-                                {{this._parent.get_name()}}.on('mousemove', function (e) {
-                                
-                                height = bounds[1][0] - bounds[0][0];
-                                width = bounds[1][1] - bounds[0][1];
-                                center = [e.latlng.lat, e.latlng.lng];
-                                bounds[0] = [center[0] - height/2, center[1] - width/2];
-                                bounds[1] = [center[0] + height/2, center[1] + width/2];
-                                console.log(bounds)
-                                depot.setBounds(bounds);
-                                });
-                        }
-                }); 
+                for (var i = 0; i < depots.length; ++i) {
+                    depots[i].on({
+                                mousedown: makeStartDragFunction(i)}); 
+                }
                 {{this._parent.get_name()}}.on('mouseup',function(e){
                                {{this._parent.get_name()}}.removeEventListener('mousemove');
                                   })
