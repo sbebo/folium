@@ -730,12 +730,13 @@ class ClickForDepot(MacroElement):
         Text to display in the markers' popups.
         If None, the popups will display the marker's latitude and longitude.
     """
-    def __init__(self, initial_bounds, initial_labels):
+    def __init__(self, account_id, initial_bounds, initial_labels):
         super(ClickForDepot, self).__init__()
         self._name = 'ClickForDepot'
+        self.account_id = account_id
         self.initial_bounds = initial_bounds
         self.initial_labels = initial_labels
-
+        
         self._template = Template(u"""
             {% macro script(this, kwargs) %}
 
@@ -752,7 +753,9 @@ class ClickForDepot(MacroElement):
                     div.innerHTML += '- click: select box<br>';
                     div.innerHTML += '- SPACE/double click: change label<br>';
                     div.innerHTML += '- DEL(CANC): remove box<br>'; 
-                    div.innerHTML += '- +/-: zoom in/out<br>';
+                    div.innerHTML += '- +/-: zoom in/out<br><br>';
+                    div.innerHTML += '<button onclick=saveFile() tabIndex="-1"><h5>Save to file</h5></button>';
+                    
                     div.style.background = "white";
                     div.style.padding = "6px 8px";
                     return div;
@@ -1050,28 +1053,21 @@ class ClickForDepot(MacroElement):
                 {{this._parent.get_name()}}.on('mouseup',function(e){
                                {{this._parent.get_name()}}.removeEventListener('mousemove');
                                   })
-
-        //        var textFile = null,
-        //          makeTextFile = function (text) {
-        //            var data = new Blob([text], {type: 'text/plain'});
-
-        //            // If we are replacing a previously generated file we need to
-        //            // manually revoke the object URL to avoid memory leaks.
-        //            if (textFile !== null) {
-        //              window.URL.revokeObjectURL(textFile);
-        //            }
-
-        //            textFile = window.URL.createObjectURL(data);
-
-        //            return textFile;
-        //          };
-	//	
-	//	
-        //          {{this._parent.get_name()}}.addEventListener('dblclick', function () {
-	//	    var link = document.getElementById('downloadlink');
-	//	    link.href = makeTextFile("HELLOOOOOOOOOO");
-	//	    link.style.display = 'block';
-	//	  }, false);
+           
+               function saveFile() {
+                    var text = [];
+                    for(var i=0; i< depots.length; ++i) {
+                        var b = depot_rectangles[i].getBounds();
+                        text.push(String(i) +  "\\t" + 
+                                b.getNorth() + "\\t" + 
+                                b.getSouth() + "\\t" +
+                                b.getWest() +  "\\t" +
+                                b.getEast() +  "\\t" +
+                                depots[i].label + '\\n');
+                    }
+                    var blob = new Blob(text, {type: "text/plain;charset=utf-8"});
+                    saveAs(blob, "{{this.account_id}}.tab");
+                };
 		
             {% endmacro %}
             """)  # noqa
