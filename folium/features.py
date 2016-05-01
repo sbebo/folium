@@ -745,16 +745,16 @@ class ClickForDepot(MacroElement):
                 
                 legend.onAdd = function (map) {
                     var div = L.DomUtil.create('div', 'info legend');
-                    div.innerHTML = '<h4>Detect depots!</h4><br>';
-                    div.innerHTML += '<b>Usage:</b><br>';
-                    div.innerHTML += '- &larr;&uarr;&darr;&rarr;: move box<br>';
-                    div.innerHTML += '- W/A/S/D: modify box width/height<br>';
-                    div.innerHTML += '- J/K: select previous/next box<br>';
-                    div.innerHTML += '- click: select box<br>';
-                    div.innerHTML += '- SPACE/double click: change label<br>';
-                    div.innerHTML += '- DEL(CANC): remove box<br>'; 
-                    div.innerHTML += '- +/-: zoom in/out<br><br>';
-                    div.innerHTML += '<button onclick=saveFile() tabIndex="-1"><h5>Save to file</h5></button>';
+                    div.innerHTML = '<h4>Label all the depots!</h4>';
+                    div.innerHTML += '<h5>AccountId: {{this.account_id}}</h5>';
+                    div.innerHTML += '<li> &larr;&uarr;&darr;&rarr;: move box<br>';
+                    div.innerHTML += '<li> W/A/S/D: modify box width/height<br>';
+                    div.innerHTML += '<li> J/K: select previous/next box<br>';
+                    div.innerHTML += '<li> click: select box<br>';
+                    div.innerHTML += '<li> SPACE/double click: change label<br>';
+                    div.innerHTML += '<li> DEL(CANC): remove box<br>'; 
+                    div.innerHTML += '<li> +/-: zoom in/out<br><br>';
+                    div.innerHTML += '</ul><button onclick=saveFile() tabIndex="-1"><h5>Save to file</h5></button>';
                     
                     div.style.background = "white";
                     div.style.padding = "6px 8px";
@@ -789,7 +789,7 @@ class ClickForDepot(MacroElement):
                     markerColor: 'red'
                     });
 
-                var unkown_icon = L.AwesomeMarkers.icon({
+                var unknown_icon = L.AwesomeMarkers.icon({
                     icon: 'question', prefix: 'fa', 
                     iconColor: 'white',
                     markerColor: 'blue'
@@ -835,7 +835,7 @@ class ClickForDepot(MacroElement):
                             depot_rectangles[i].setStyle({color: 'green', fillColor: 'green'});
                             break;
                         default:
-                            depot_markers[i].setIcon(unkown_icon);
+                            depot_markers[i].setIcon(unknown_icon);
                             depot_rectangles[i].setStyle({color: 'blue', fillColor: 'blue'});
                             break;
                     }
@@ -997,7 +997,7 @@ class ClickForDepot(MacroElement):
                                                                 depot_rectangles[selected]]));
                             depot_rectangles[selected].depot_id = selected;
                             depot_markers[selected].depot_id = selected;
-                            setLabel(selected, "unkown");
+                            setLabel(selected, "unknown");
                             depots[selected].depot_id = selected;
                             {{this._parent.get_name()}}.addLayer(depots[selected]);
                             depots[selected].on({click: selectDepot}); 
@@ -1056,6 +1056,13 @@ class ClickForDepot(MacroElement):
            
                function saveFile() {
                     var text = [];
+                    text.push("DepotId\\t" + 
+                               "North\\t" + 
+                               "South\\t" +
+                               "West\\t" +
+                               "East\\t" +
+                               'Label\\n');
+
                     for(var i=0; i< depots.length; ++i) {
                         var b = depot_rectangles[i].getBounds();
                         text.push(String(i) +  "\\t" + 
