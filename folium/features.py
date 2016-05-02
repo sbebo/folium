@@ -795,7 +795,7 @@ class ClickForDepot(MacroElement):
                     markerColor: 'blue'
                     });
 
-		function dehighlight(i) {
+		function deselect(i) {
                     var group = depots[i];
                     var marker = group.getLayers()[0];
                     var rectangle = group.getLayers()[1];
@@ -803,7 +803,8 @@ class ClickForDepot(MacroElement):
                     marker.setOpacity(0.5);
                 }
 
-                function highlight(i) {
+                function select(i) {
+                    selected = i;
                     var group = depots[i];
                     var marker = group.getLayers()[0];
                     var rectangle = group.getLayers()[1];
@@ -858,9 +859,9 @@ class ClickForDepot(MacroElement):
                     setLabel(i, initial_labels[i]);
                     {{this._parent.get_name()}}.addLayer(depots[i]);
                     if(i == 0)
-                        highlight(i);
+                        select(i);
                     else
-                        dehighlight(i);
+                        deselect(i);
                 }
                 
                 var ARROWLEFT = 37; 
@@ -963,31 +964,31 @@ class ClickForDepot(MacroElement):
                             while(depots[selected].label == 'discarded') {
                                 selected = (selected - 1 + depots.length) % depots.length;
                             }
-                            highlight(selected);
+                            select(selected);
                             break;
                         case NEXT:
                             if(good == 0)
                                 break;
-                            dehighlight(selected);
+                            deselect(selected);
                             selected = (selected + 1) % depots.length;
                             while(depots[selected].label == 'discarded') {
                                 selected = (selected + 1) % depots.length;
                             }
-                            highlight(selected);
+                            select(selected);
                             break;
                         case PREV:
                             if(good == 0)
                                 break;
-                            dehighlight(selected);
+                            deselect(selected);
                             selected = (selected - 1 + depots.length) % depots.length;
                             while(depots[selected].label == 'discarded') {
                                 selected = (selected - 1 + depots.length) % depots.length;
                             }
-                            highlight(selected);
+                            select(selected);
                             break;
                         case NEW:
                             good += 1;
-                            dehighlight(selected);
+                            deselect(selected);
                             selected = depots.length;
                             bounds[0][1] += 3*getEpsilon(); 
                             bounds[1][1] += 3*getEpsilon(); 
@@ -1004,7 +1005,7 @@ class ClickForDepot(MacroElement):
                             depot_markers[selected].on({drag: dragMarker}); 
                             depot_rectangles[selected].on({dblclick: changeRole}); 
                             depot_markers[selected].on({dblclick: changeRole}); 
-                            highlight(selected);
+                            select(selected);
                             break;
                     }
                     };
@@ -1012,17 +1013,15 @@ class ClickForDepot(MacroElement):
                 function selectDepot(e) {
                     console.log("selectDepot on " + e.target.depot_id)
                     if(selected != e.target.depot_id) {
-                        dehighlight(selected)                        
-                        selected = e.target.depot_id;
-                        highlight(selected)                        
+                        deselect(selected);                        
+                        select(e.target.depot_id);                        
                     }
                 }
                     
                 function dragMarker(e) {
                     if(selected != e.target.depot_id) {
-                        dehighlight(selected)                        
-                        selected = e.target.depot_id;
-                        highlight(selected)                        
+                        deselect(selected); 
+                        select(e.target.depot_id);                        
                     }
                     var marker = e.target;
                     var latlng = marker.getLatLng();
